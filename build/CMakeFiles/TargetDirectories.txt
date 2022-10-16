@@ -1,0 +1,5 @@
+/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles/Gitlet.dir
+/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles/GitletTest.dir
+/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles/test.dir
+/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles/edit_cache.dir
+/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles/rebuild_cache.dir

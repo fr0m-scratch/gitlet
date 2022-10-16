@@ -1,0 +1,69 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "gitlet",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "Gitlet::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-Gitlet-Debug-87493888649402e53fab.json",
+					"name" : "Gitlet",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "GitletTest::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-GitletTest-Debug-3eda112fcaff4ff35f8c.json",
+					"name" : "GitletTest",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/Users/jamalcao/Dropbox/My Mac (Jamal\u2019s MacBook Pro)/Desktop/miscellaneous/gitlet/cmake-build-debug",
+		"source" : "/Users/jamalcao/Dropbox/My Mac (Jamal\u2019s MacBook Pro)/Desktop/miscellaneous/gitlet"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 5
+	}
+}

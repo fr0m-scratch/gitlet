@@ -1,0 +1,5 @@
+/Applications/CLion.app/Contents/bin/cmake/mac/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/Applications/CLion.app/Contents/bin/ninja/mac/ninja -DCMAKE_CXX_COMPILER=g++ -G Ninja -S "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet" -B "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/cmake-build-debug"
+-- Found OpenSSL: /usr/local/Cellar/openssl@3/3.1.4/lib/libcrypto.dylib (found version "3.1.4")  
+-- Configuring done (1.9s)
+-- Generating done (0.0s)
+-- Build files have been written to: /Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/cmake-build-debug
