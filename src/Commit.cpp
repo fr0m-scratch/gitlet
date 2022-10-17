@@ -19,7 +19,9 @@ std::string Commit::calcHash() const {
     std::ostringstream archive_stream;
     boost::archive::text_oarchive archive(archive_stream);
     archive << *this;
-    return Utils::sha1({archive_stream.str()});
+    std::string serializedCommit = archive_stream.str();
+    std::vector<char> commitData(serializedCommit.begin(), serializedCommit.end());
+    return Utils::sha1(commitData);
 }
 
 std::string Commit::getOwnHash() const {

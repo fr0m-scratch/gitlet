@@ -58,6 +58,9 @@
         "cwchar": "cpp",
         "cwctype": "cpp",
         "iostream": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "deque": "cpp",
+        "queue": "cpp",
+        "unordered_set": "cpp"
     }
 }

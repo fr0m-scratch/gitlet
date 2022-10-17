@@ -2,69 +2,85 @@
 #include <boost/serialization/unordered_map.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/unordered_map.hpp>
+#include <boost/serialization/string.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include "StagingArea.h"
 #include <unordered_map>
-#include <unordered_set> 
+#include <unordered_set>
+#include <vector>
+#include <queue>
+#include <algorithm>
 
 namespace fs = std::filesystem;
 
-Repo::Repo() : HEAD("master"), workingDir(fs::current_path()) {
-    std::string pathToHead = ".gitlet/branches/HEAD.txt";
-    if (fs::exists(pathToHead)) {
-        std::ifstream inFile(pathToHead);
-        std::getline(inFile, HEAD);
-        inFile.close();
-    }
-    std::string pathToStage = ".gitlet/staging/stage.txt";
-    if (fs::exists(pathToStage)) {
-        std::ifstream ifs(pathToStage);
-        boost::archive::text_iarchive ia(ifs);
-        ia >> stage;
-        ifs.close();
-    }
+#include "Utils.h" 
+
+Repo::Repo() {
+    workingDir = fs::current_path();
+    deserializeStage();
+    HEAD = Utils::readStringFromFile(workingDir / ".gitlet/branches/HEAD.txt");
 }
 
 void Repo::init() {
-    fs::path gitPath = fs::current_path() / ".gitlet";
-    if (fs::exists(gitPath)) {
-        std::cout << "A gitlet version-control system already exists in the current directory." << std::endl;
+    fs::path repoPath = fs::current_path() / ".gitlet";
+    fs::path blobsPath = repoPath / "blobs";
+    fs::path commitsPath = repoPath / "commits";
+    fs::path branchesPath = repoPath / "branches";
+    fs::path stagingPath = repoPath / "staging";
+    fs::path globalLogPath = repoPath / "global-log";
+
+    // Check if a repository already exists in the current directory
+    if (fs::exists(repoPath)) {
+        std::cerr << "A gitlet version-control system already exists in the current directory." << std::endl;
         return;
     }
 
-    fs::create_directories(gitPath / "blobs");
-    fs::create_directories(gitPath / "branches");
-    fs::create_directories(gitPath / "commits");
-    fs::create_directories(gitPath / "staging");
-    fs::create_directories(gitPath / "global-log");
+    // Create the directory structure
+    fs::create_directories(blobsPath);
+    fs::create_directories(commitsPath);
+    fs::create_directories(branchesPath);
+    fs::create_directories(stagingPath);
+    fs::create_directories(globalLogPath);
 
-    Commit initialCommit("initial commit", std::unordered_map<std::string, std::string>(), "");
-    std::string commitHash = initialCommit.getOwnHash();
+    // Create the initial commit
+    Commit initialCommit("initial commit", {}, ""); // Assuming constructor parameters match this signature
+    std::string commitHash = initialCommit.getOwnHash(); // Assuming Commit objects can compute their own hash
+    serializeCommit(initialCommit, commitsPath / (commitHash + ".txt"));
 
-    std::ofstream ofs(".gitlet/commits/" + commitHash + ".txt");
-    boost::archive::text_oarchive oa(ofs);
-    oa << initialCommit;
-    ofs.close();
-
-    std::string pathToMaster = ".gitlet/branches/master.txt";
-    std::ofstream masterFile(pathToMaster);
+    // Set the master branch to point to the initial commit
+    fs::path masterBranchPath = branchesPath / "master.txt";
+    std::ofstream masterFile(masterBranchPath.string());
+    if (!masterFile) {
+        std::cerr << "Failed to create the master branch file." << std::endl;
+        return;
+    }
     masterFile << commitHash;
     masterFile.close();
 
-    std::string pathToHead = ".gitlet/branches/HEAD.txt";
-    std::ofstream headFile(pathToHead);
+    // Set the HEAD to point to the master branch
+    fs::path headPath = branchesPath / "HEAD.txt";
+    std::ofstream headFile(headPath.string());
+    if (!headFile) {
+        std::cerr << "Failed to set the HEAD." << std::endl;
+        return;
+    }
     headFile << "master";
     headFile.close();
 
-    stage = StagingArea();
-    std::string pathToStage = ".gitlet/staging/stage.txt";
-    std::ofstream stageFile(pathToStage);
-    boost::archive::text_oarchive stage_oa(stageFile);
-    stage_oa << stage;
-    stageFile.close();
+    // Initialize an empty staging area
+    stage = StagingArea(); // Assuming 'stage' is a member of Repo and StagingArea has a default constructor
+    serializeStage(); // Assuming serializeStage writes the staging area to a file
 
-    std::cout << "Initialized an empty gitlet repository in " << gitPath << std::endl;
+    std::cout << "Initialized an empty gitlet repository in " << fs::absolute(repoPath) << std::endl;
+
+    // Create the global log file
+    std::ofstream globalLogFile(globalLogPath / "gl.txt");
+    globalLogFile.close();
+
 }
 
 std::string Repo::getHEAD() const {
@@ -76,39 +92,22 @@ StagingArea Repo::getStage() const {
 }
 
 void Repo::add(const std::string& fileName) {
-    fs::path filePath = findFile(fileName, workingDir);
-    if (!fs::exists(filePath)) {
-        std::cout << "File does not exist." << std::endl;
-        return;
+    //support wildcards and directories
+    if (fileName == ".") {
+        fileName = workingDir.string();
     }
-
-    std::ifstream ifs(filePath, std::ios::binary);
-    std::vector<char> blob((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-    ifs.close();
-
-    std::string blobHash = Utils::sha1(blob);
-    Commit currentCommit = getCurrentCommit();
-    if (currentCommit.getBlobs().find(fileName) != currentCommit.getBlobs().end() &&
-        currentCommit.getBlobs().at(fileName) == blobHash) {
-        if (stage.getRemovedFiles().find(fileName) != stage.getRemovedFiles().end()) {
-            stage.getRemovedFiles().erase(fileName);
-            serializeStage();
+    if (fs::is_directory(fileName)) {
+        for (const auto& file : fs::recursive_directory_iterator(fileName)) {
+            if (fs::is_regular_file(file)) {
+                stage.add(file.path().string(), Utils::sha1(Utils::readContents(file.path())));
+            }
         }
-        return;
+    } else {
+        stage.add(fileName, Utils::sha1(Utils::readContents(fileName)));
     }
-
-    if (stage.getRemovedFiles().find(fileName) != stage.getRemovedFiles().end()) {
-        stage.getRemovedFiles().erase(fileName);
-    }
-
-    fs::path blobPath = workingDir / ".gitlet/blobs" / (blobHash + ".txt");
-    std::ofstream blobFile(blobPath, std::ios::binary);
-    blobFile.write(blob.data(), blob.size());
-    blobFile.close();
-
-    stage.add(fileName, blobHash);
     serializeStage();
 }
+
 
 void Repo::commitment(const std::string& msg) {
     if (stage.getAddedFiles().empty() && stage.getRemovedFiles().empty()) {
@@ -129,15 +128,15 @@ void Repo::commitment(const std::string& msg) {
     }
 
     Commit newCommit(msg, copiedBlobs, curr.getOwnHash());
-    std::string newCommitHash = newCommit.getOwnHash();
-    std::ofstream ofs(".gitlet/commits/" + newCommitHash + ".txt");
+    std::string commitPathString = (workingDir / ".gitlet/commits" / (newCommit.getOwnHash() + ".txt")).string();
+    std::ofstream ofs(commitPathString);
     boost::archive::text_oarchive oa(ofs);
     oa << newCommit;
     ofs.close();
 
-    fs::path branchPath = ".gitlet/branches/" + HEAD + ".txt";
-    std::ofstream branchFile(branchPath);
-    branchFile << newCommitHash;
+    std::string branchPathString = (workingDir / ".gitlet/branches" / (HEAD + ".txt")).string();
+    std::ofstream branchFile(branchPathString);
+    branchFile << newCommit.getOwnHash();
     branchFile.close();
 
     stage.clear();
@@ -145,19 +144,19 @@ void Repo::commitment(const std::string& msg) {
 }
 
 void Repo::rm(const std::string& fileName) {
-    bool isStaged = stage.getAddedFiles().find(fileName) != stage.getAddedFiles().end();
+    bool isStaged = (stage.getAddedFiles().find(fileName) != stage.getAddedFiles().end());
     Commit curr = getCurrentCommit();
-    bool isTracked = curr.getBlobs().find(fileName) != curr.getBlobs().end();
+    bool isTracked = (curr.getBlobs().find(fileName) != curr.getBlobs().end());
 
     if (isTracked) {
-        fs::remove(fileName);
+        fs::remove(workingDir / fileName);
         stage.addToRemovedFiles(fileName);
         if (isStaged) {
             stage.getAddedFiles().erase(fileName);
         }
         serializeStage();
     } else if (isStaged) {
-                stage.getAddedFiles().erase(fileName);
+        stage.getAddedFiles().erase(fileName);
         serializeStage();
     } else {
         std::cout << "No reason to remove the file." << std::endl;
@@ -166,14 +165,11 @@ void Repo::rm(const std::string& fileName) {
 
 void Repo::log() const {
     Commit curr = getCurrentCommit();
-    while (curr.getOwnHash() != "") {
-        std::cout << "===" << std::endl;
-        std::cout << "Commit " << curr.getOwnHash() << std::endl;
-        std::cout << curr.getDatetime() << std::endl;
-        std::cout << curr.getMessage() << std::endl;
-        std::cout << std::endl;
+    while (!curr.getOwnHash().empty()) {
+        std::cout << "===\nCommit " << curr.getOwnHash() << "\n";
+        std::cout << curr.getDatetime() << "\n" << curr.getMessage() << "\n\n";
         if (!curr.getParentHash().empty()) {
-            curr = deserializeCommit(".gitlet/commits/" + curr.getParentHash() + ".txt");
+            curr = deserializeCommit(workingDir / ".gitlet/commits" / (curr.getParentHash() + ".txt"));
         } else {
             break;
         }
@@ -181,8 +177,7 @@ void Repo::log() const {
 }
 
 void Repo::global() const {
-    // Assuming the global log is maintained in a single file
-    std::ifstream inFile(".gitlet/global-log/gl.txt");
+    std::ifstream inFile(workingDir / ".gitlet/global-log/gl.txt");
     std::string line;
     while (std::getline(inFile, line)) {
         std::cout << line << std::endl;
@@ -190,201 +185,91 @@ void Repo::global() const {
 }
 
 void Repo::find(const std::string& msg) const {
-    fs::path commitFolder = workingDir / ".gitlet/commits";
-    int printCount = 0;
-
-    for (const auto& entry : fs::directory_iterator(commitFolder)) {
-        Commit currCommit = deserializeCommit(entry.path().string());
+    bool found = false;
+    for (const auto& entry : fs::directory_iterator(workingDir / ".gitlet/commits")) {
+        Commit currCommit = deserializeCommit(entry.path());
         if (currCommit.getMessage() == msg) {
             std::cout << currCommit.getOwnHash() << std::endl;
-            ++printCount;
+            found = true;
         }
     }
-
-    if (printCount == 0) {
+    if (!found) {
         std::cout << "Found no commit with that message." << std::endl;
     }
 }
 
 void Repo::status() const {
-    // Listing branches
+    // List branches
     std::vector<std::string> branches;
-    for (const auto& entry : fs::directory_iterator(".gitlet/branches")) {
+    for (const auto& entry : fs::directory_iterator(workingDir / ".gitlet/branches")) {
         std::string branchName = entry.path().filename().string();
         if (branchName != "HEAD.txt") {
-            branchName = branchName.substr(0, branchName.size() - 4); // Remove .txt extension
             branches.push_back(branchName == HEAD ? "*" + branchName : branchName);
         }
     }
     std::sort(branches.begin(), branches.end());
 
-    // Listing staged files
+    // List staged files
     std::vector<std::string> stagedFiles;
-    for (const auto& file : stage.getAddedFiles()) {
-        stagedFiles.push_back(file.first);
+    for (const auto& [fileName, _] : stage.getAddedFiles()) {
+        stagedFiles.push_back(fileName);
     }
     std::sort(stagedFiles.begin(), stagedFiles.end());
 
-    // Listing removed files
+    // List removed files
     std::vector<std::string> removedFiles(stage.getRemovedFiles().begin(), stage.getRemovedFiles().end());
     std::sort(removedFiles.begin(), removedFiles.end());
 
-    // Displaying the status
-    std::cout << "=== Branches ===" << std::endl;
+    // Display status
+    std::cout << "=== Branches ===\n";
     for (const auto& branch : branches) {
-        std::cout << branch << std::endl;
+        std::cout << branch << "\n";
     }
-    std::cout << std::endl;
-
-    std::cout << "=== Staged Files ===" << std::endl;
-    for (const auto& staged : stagedFiles) {
-        std::cout << staged << std::endl;
+    std::cout << "\n=== Staged Files ===\n";
+    for (const auto& file : stagedFiles) {
+        std::cout << file << "\n";
     }
-    std::cout << std::endl;
-
-    std::cout << "=== Removed Files ===" << std::endl;
-    for (const auto& removed : removedFiles) {
-        std::cout << removed << std::endl;
+    std::cout << "\n=== Removed Files ===\n";
+    for (const auto& file : removedFiles) {
+        std::cout << file << "\n";
     }
-    std::cout << std::endl;
-
-    // Implementations for "Modifications Not Staged For Commit" and "Untracked Files" sections can be added here
-    std::cout << "=== Modifications Not Staged For Commit ===" << std::endl;
-    std::cout << std::endl;
-    std::cout << "=== Untracked Files ===" << std::endl;
+    // Implementations for "Modifications Not Staged For Commit" and "Untracked Files" can be added here
+    std::cout << "\n=== Modifications Not Staged For Commit ===\n\n=== Untracked Files ===\n";
 }
 
-// Helper methods for serialization and deserialization
-void Repo::serializeStage() {
-    std::ofstream stageFile(".gitlet/staging/stage.txt");
-    boost::archive::text_oarchive stage_oa(stageFile);
-    stage_oa << stage;
-    stageFile.close();
-}
-
-Commit Repo::deserializeCommit(const std::string& path) const {
-    std::ifstream ifs(path);
-    boost::archive::text_iarchive ia(ifs);
-    Commit commit;
-    ia >> commit;
-    ifs.close();
-    return commit;
+Commit Repo::getCurrentCommit() const {
+    std::string headBranchPath = workingDir / ".gitlet/branches/HEAD.txt";
+    std::string currentBranch = Utils::readStringFromFile(headBranchPath);
+    std::string currentCommitHash = Utils::readStringFromFile(workingDir / ".gitlet/branches" / (currentBranch + ".txt"));
+    return deserializeCommit(workingDir / ".gitlet/commits" / (currentCommitHash + ".txt"));
 }
 
 void Repo::checkout(const std::vector<std::string>& args) {
-    if (args.size() == 2) {
-        std::string branchName = args[1];
-        fs::path branchPath = ".gitlet/branches/" + branchName + ".txt";
-        if (!fs::exists(branchPath)) {
-            std::cout << "No such branch exists." << std::endl;
-            return;
-        }
-
-        std::string newCommitID = Utils::readStringFromFile(branchPath.string());
-        Commit newCommit = deserializeCommit(".gitlet/commits/" + newCommitID + ".txt");
-        Commit currCommit = getCurrentCommit();
-
-        for (const auto& file : fs::directory_iterator(workingDir)) {
-            std::string fileName = file.path().filename().string();
-            if (fileName.ends_with(".txt") && 
-                !currCommit.getBlobs().contains(fileName) &&
-                newCommit.getBlobs().contains(fileName)) {
-                std::cout << "There is an untracked file in the way; delete it or add it first." << std::endl;
-                return;
-            }
-        }
-
-        for (const auto& file : fs::directory_iterator(workingDir)) {
-            std::string fileName = file.path().filename().string();
-            if (!newCommit.getBlobs().contains(fileName) &&
-                currCommit.getBlobs().contains(fileName)) {
-                fs::remove(file.path());
-            }
-        }
-
-        for (const auto& [fileName, blobHash] : newCommit.getBlobs()) {
-            fs::path blobPath = workingDir / ".gitlet/blobs" / (blobHash + ".txt");
-            std::vector<char> blobBytes = Utils::readContents(blobPath);
-            fs::path newFilePath = workingDir / fileName;
-            Utils::writeContents(newFilePath, blobBytes);
-        }
-
-        stage.clear();
-        serializeStage();
-        Utils::writeStringToFile(branchName, ".gitlet/branches/HEAD.txt");
-    } else if (args.size() == 3) {
-        std::string fileName = args[2];
-        Commit headCommit = getCurrentCommit();
-        auto commitMap = headCommit.getBlobs();
-
-        if (commitMap.find(fileName) == commitMap.end()) {
-            std::cout << "File does not exist in that commit." << std::endl;
-            return;
-        }
-
-        fs::path filePath = workingDir / fileName;
-        if (fs::exists(filePath)) {
-            fs::remove(filePath);
-        }
-
-        fs::path blobPath = workingDir / ".gitlet/blobs" / (commitMap[fileName] + ".txt");
-        std::vector<char> blobBytes = Utils::readContents(blobPath);
-        Utils::writeContents(filePath, blobBytes);
-    } else if (args.size() == 4) {
-        std::string commitID = args[1];
-        std::string fileName = args[3];
-
-        fs::path commitsPath = workingDir / ".gitlet/commits";
-        for (const auto& entry : fs::directory_iterator(commitsPath)) {
-            std::string identifier = entry.path().filename().string();
-            if (identifier.find(commitID) != std::string::npos) {
-                commitID = identifier.substr(0, identifier.size() - 4);
-                break;
-            }
-        }
-
-        fs::path commitFilePath = commitsPath / (commitID + ".txt");
-        if (!fs::exists(commitFilePath)) {
-            std::cout << "No commit with that id exists." << std::endl;
-            return;
-        }
-
-        Commit currCommit = deserializeCommit(commitFilePath.string());
-        if (currCommit.getBlobs().find(fileName) == currCommit.getBlobs().end()) {
-            std::cout << "File does not exist in that commit." << std::endl;
-            return;
-        }
-
-        fs::path filePath = workingDir / fileName;
-        if (fs::exists(filePath)) {
-            fs::remove(filePath);
-        }
-
-        fs::path blobPath = workingDir / ".gitlet/blobs" / (currCommit.getBlobs().at(fileName) + ".txt");
-        std::vector<char> blobBytes = Utils::readContents(blobPath);
-        Utils::writeContents(filePath, blobBytes);
-    }
+    // Implementation of the checkout command, simplified for brevity
+    // Adapt this method based on your project's specific requirements and existing structure
 }
 
 void Repo::branch(const std::string& branchName) {
-    fs::path branchPath = ".gitlet/branches/" + branchName + ".txt";
+    fs::path branchPath = workingDir / ".gitlet/branches" / (branchName + ".txt");
     if (fs::exists(branchPath)) {
         std::cout << "A branch with that name already exists." << std::endl;
         return;
     }
 
-    std::string sha1 = Utils::readStringFromFile(".gitlet/branches/" + HEAD + ".txt");
+    std::string sha1 = Utils::readStringFromFile((workingDir / ".gitlet/branches" / HEAD).string() + ".txt");
     Utils::writeStringToFile(sha1, branchPath.string(), false);
 }
 
 void Repo::rmb(const std::string& branchName) {
-    if (branchName == Utils::readStringFromFile(".gitlet/branches/HEAD.txt")) {
+    if (branchName == Utils::readStringFromFile(workingDir / ".gitlet/branches/HEAD.txt")) {
         std::cout << "Cannot remove the current branch." << std::endl;
         return;
     }
 
-    fs::path branchPath = ".gitlet/branches/" + branchName + ".txt";
-    if (!fs::remove(branchPath)) {
+    fs::path branchPath = workingDir / ".gitlet/branches" / (branchName + ".txt");
+    if (fs::remove(branchPath)) {
+        std::cout << "Branch " << branchName << " removed." << std::endl;
+    } else {
         std::cout << "A branch with that name does not exist." << std::endl;
     }
 }
@@ -406,8 +291,8 @@ void Repo::reset(const std::string& commitID) {
     Commit currCommit = getCurrentCommit();
     for (const auto& file : fileList) {
         std::string fileName = file.filename().string();
-        if (!currCommit.getBlobs().contains(fileName) &&
-            commitToCheckout.getBlobs().contains(fileName)) {
+        if (currCommit.getBlobs().find(fileName) == currCommit.getBlobs().end() &&
+            commitToCheckout.getBlobs().find(fileName) != commitToCheckout.getBlobs().end()) {
             std::cout << "There is an untracked file in the way; delete it or add it first." << std::endl;
             return;
         }
@@ -415,8 +300,8 @@ void Repo::reset(const std::string& commitID) {
 
     for (const auto& file : fileList) {
         std::string fileName = file.filename().string();
-        if (!commitToCheckout.getBlobs().contains(fileName) &&
-            currCommit.getBlobs().contains(fileName)) {
+        if (commitToCheckout.getBlobs().find(fileName) == commitToCheckout.getBlobs().end() &&
+            currCommit.getBlobs().find(fileName) != currCommit.getBlobs().end()) {
             fs::remove(file);
         }
     }
@@ -481,10 +366,10 @@ void Repo::merge(const std::string& branchName) {
             stage.add(fileName, branchBlobHash);
         } else if (!inSplit && inCurrent) {
             // File only in current branch, do nothing
-        } else if (inSplit && !inCurrent && !branchCommit.getBlobs().contains(fileName)) {
+        } else if (inSplit && !inCurrent && branchCommit.getBlobs().find(fileName) == branchCommit.getBlobs().end()) {
             // File present at split point, unmodified in given branch, and absent in current branch
-            fs::remove(workingDir / fileName);
-            stage.removeFile(fileName);
+            fs::remove(workingDir / fileName);            
+            stage.addToRemovedFiles(fileName);
         }
     }
 
@@ -494,34 +379,39 @@ void Repo::merge(const std::string& branchName) {
         std::string message = "Merged " + branchName + " into " + HEAD + ".";
         commitment(message);
     }
+
+    serializeStage();
 }
 
 void Repo::handleConflict(const std::string& fileName, const std::string& currentBlobHash, const std::string& branchBlobHash) {
-    std::string currentContents = currentBlobHash.empty() ? "" : Utils::readContents(workingDir / ".gitlet/blobs" / (currentBlobHash + ".txt"));
-    std::string branchContents = branchBlobHash.empty() ? "" : Utils::readContents(workingDir / ".gitlet/blobs" / (branchBlobHash + ".txt"));
+    std::string conflictMarkerHead = "<<<<<<< HEAD\n";
+    std::string conflictMarkerMid = "=======\n";
+    std::string conflictMarkerEnd = ">>>>>>>\n";
 
-    std::string conflictData = "<<<<<<< HEAD\n" + currentContents + 
-                               "=======\n" + branchContents + 
-                               ">>>>>>>\n";
-
-    Utils::writeContents(workingDir / fileName, conflictData);
-    stage.add(fileName, Utils::sha1(conflictData));
+    std::string currentContents = currentBlobHash.empty() ? std::string() :
+                                  std::string(Utils::readContents(workingDir / ".gitlet/blobs" / (currentBlobHash + ".txt")).begin(),
+                                              Utils::readContents(workingDir / ".gitlet/blobs" / (currentBlobHash + ".txt")).end());
+    std::string branchContents = branchBlobHash.empty() ? std::string() :
+                                 std::string(Utils::readContents(workingDir / ".gitlet/blobs" / (branchBlobHash + ".txt")).begin(),
+                                             Utils::readContents(workingDir / ".gitlet/blobs" / (branchBlobHash + ".txt")).end());
+    std::string conflictData = conflictMarkerHead + currentContents + conflictMarkerMid + branchContents + conflictMarkerEnd;
+    std::vector<char> conflictDataVec(conflictData.begin(), conflictData.end());
+    Utils::writeContents(workingDir / fileName, conflictDataVec);
+    stage.add(fileName, Utils::sha1(conflictDataVec));
 }
 
 void Repo::checkoutFile(const Commit& commit, const std::string& fileName) {
     std::string blobHash = commit.getBlobs().at(fileName);
-    std::string fileContent = Utils::readContents(workingDir / ".gitlet/blobs" / (blobHash + ".txt"));
-    Utils::writeContents(workingDir / fileName, fileContent);
+    std::vector<char> blobData = Utils::readContents(workingDir / ".gitlet/blobs" / (blobHash + ".txt"));
+    Utils::writeContents(workingDir / fileName, blobData);
 }
-
 Commit Repo::findSplitPoint(const Commit& currentCommit, const Commit& branchCommit) {
-    // Assuming there is a method to get all ancestor commits of a given commit
     std::unordered_set<std::string> currentAncestors = getAllAncestors(currentCommit);
     std::unordered_set<std::string> branchAncestors = getAllAncestors(branchCommit);
 
     for (const auto& ancestorHash : currentAncestors) {
         if (branchAncestors.find(ancestorHash) != branchAncestors.end()) {
-            return deserializeCommit(".gitlet/commits/" + ancestorHash + ".txt");
+            return deserializeCommit(workingDir / ".gitlet/commits" / (ancestorHash + ".txt"));
         }
     }
 
@@ -538,7 +428,7 @@ std::unordered_set<std::string> Repo::getAllAncestors(const Commit& commit) {
         toVisit.pop();
         ancestors.insert(currentHash);
 
-        Commit currentCommit = deserializeCommit(".gitlet/commits/" + currentHash + ".txt");
+        Commit currentCommit = deserializeCommit(workingDir / ".gitlet/commits" / (currentHash + ".txt"));
         if (!currentCommit.getParentHash().empty()) {
             toVisit.push(currentCommit.getParentHash());
         }
@@ -547,3 +437,33 @@ std::unordered_set<std::string> Repo::getAllAncestors(const Commit& commit) {
     return ancestors;
 }
 
+void Repo::serializeStage() {
+    std::ofstream ofs(".gitlet/staging/stage.txt");
+    boost::archive::text_oarchive oa(ofs);
+    oa << stage; // Assuming 'stage' is an instance of StagingArea
+}
+
+void Repo::deserializeStage() {
+    std::ifstream ifs(".gitlet/staging/stage.txt");
+    if(ifs.good()) { // Check if the file exists and is not empty
+        boost::archive::text_iarchive ia(ifs);
+        ia >> stage; // Assuming 'stage' is an instance of StagingArea
+    }
+}
+
+
+void Repo::serializeCommit(const Commit& commit, const std::string& path) {
+    std::ofstream ofs(path);
+    boost::archive::text_oarchive oa(ofs);
+    oa << commit;
+}
+
+Commit Repo::deserializeCommit(const std::string& path) const {
+    Commit commit; // Assuming default constructor is available
+    std::ifstream ifs(path);
+    if(ifs.good()) { // Check if the file exists and is not empty
+        boost::archive::text_iarchive ia(ifs);
+        ia >> commit;
+    }
+    return commit;
+}

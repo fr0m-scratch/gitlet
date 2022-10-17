@@ -33,6 +33,11 @@ public:
     Commit findSplitPoint(const Commit& currentCommit, const Commit& branchCommit);
     void checkoutFile(const Commit& commit, const std::string& fileName);
     std::unordered_set<std::string> getAllAncestors(const Commit& commit);
+    void serializeStage();
+    Commit deserializeCommit(const std::string& path) const;
+    void serializeCommit(const Commit& commit, const std::string& path);
+    void deserializeStage();
+    void handleConflict(const std::string& fileName, const std::string& currentBlobHash, const std::string& branchBlobHash);
 private:
     std::string HEAD;
     StagingArea stage;

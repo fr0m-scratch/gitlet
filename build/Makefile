@@ -48,37 +48,27 @@ cmake_force:
 SHELL = /bin/sh
 
 # The CMake executable.
-CMAKE_COMMAND = /usr/local/Cellar/cmake/3.28.1/bin/cmake
+CMAKE_COMMAND = /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake
 
 # The command to remove a file.
-RM = /usr/local/Cellar/cmake/3.28.1/bin/cmake -E rm -f
+RM = /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake -E rm -f
 
 # Escaping for special characters.
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet"
+CMAKE_SOURCE_DIR = /Users/fr0m_scratch/gitlet
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build"
+CMAKE_BINARY_DIR = /Users/fr0m_scratch/gitlet/build
 
 #=============================================================================
 # Targets provided globally by CMake.
 
-# Special rule for the target test
-test:
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Running tests..."
-	/usr/local/Cellar/cmake/3.28.1/bin/ctest --force-new-ctest-process $(ARGS)
-.PHONY : test
-
-# Special rule for the target test
-test/fast: test
-.PHONY : test/fast
-
 # Special rule for the target edit_cache
 edit_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Running CMake cache editor..."
-	/usr/local/Cellar/cmake/3.28.1/bin/ccmake -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+	/opt/homebrew/Cellar/cmake/3.28.3/bin/ccmake -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
 .PHONY : edit_cache
 
 # Special rule for the target edit_cache
@@ -88,7 +78,7 @@ edit_cache/fast: edit_cache
 # Special rule for the target rebuild_cache
 rebuild_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Running CMake to regenerate build system..."
-	/usr/local/Cellar/cmake/3.28.1/bin/cmake --regenerate-during-build -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+	/opt/homebrew/Cellar/cmake/3.28.3/bin/cmake --regenerate-during-build -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
 .PHONY : rebuild_cache
 
 # Special rule for the target rebuild_cache
@@ -97,9 +87,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles" "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build//CMakeFiles/progress.marks"
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/fr0m_scratch/gitlet/build/CMakeFiles /Users/fr0m_scratch/gitlet/build//CMakeFiles/progress.marks
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles" 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/fr0m_scratch/gitlet/build/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -138,19 +128,6 @@ Gitlet: cmake_check_build_system
 Gitlet/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Gitlet.dir/build.make CMakeFiles/Gitlet.dir/build
 .PHONY : Gitlet/fast
-
-#=============================================================================
-# Target rules for targets named GitletTest
-
-# Build rule for target.
-GitletTest: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 GitletTest
-.PHONY : GitletTest
-
-# fast build rule for target.
-GitletTest/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GitletTest.dir/build.make CMakeFiles/GitletTest.dir/build
-.PHONY : GitletTest/fast
 
 src/Commit.o: src/Commit.cpp.o
 .PHONY : src/Commit.o
@@ -272,30 +249,6 @@ src/main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Gitlet.dir/build.make CMakeFiles/Gitlet.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
-tests/test_basic.o: tests/test_basic.cpp.o
-.PHONY : tests/test_basic.o
-
-# target to build an object file
-tests/test_basic.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GitletTest.dir/build.make CMakeFiles/GitletTest.dir/tests/test_basic.cpp.o
-.PHONY : tests/test_basic.cpp.o
-
-tests/test_basic.i: tests/test_basic.cpp.i
-.PHONY : tests/test_basic.i
-
-# target to preprocess a source file
-tests/test_basic.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GitletTest.dir/build.make CMakeFiles/GitletTest.dir/tests/test_basic.cpp.i
-.PHONY : tests/test_basic.cpp.i
-
-tests/test_basic.s: tests/test_basic.cpp.s
-.PHONY : tests/test_basic.s
-
-# target to generate assembly for a file
-tests/test_basic.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GitletTest.dir/build.make CMakeFiles/GitletTest.dir/tests/test_basic.cpp.s
-.PHONY : tests/test_basic.cpp.s
-
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -304,9 +257,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
-	@echo "... test"
 	@echo "... Gitlet"
-	@echo "... GitletTest"
 	@echo "... src/Commit.o"
 	@echo "... src/Commit.i"
 	@echo "... src/Commit.s"
@@ -322,9 +273,6 @@ help:
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
-	@echo "... tests/test_basic.o"
-	@echo "... tests/test_basic.i"
-	@echo "... tests/test_basic.s"
 .PHONY : help
 
 

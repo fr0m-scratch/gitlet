@@ -8,11 +8,11 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/src/Commit.cpp" "CMakeFiles/Gitlet.dir/src/Commit.cpp.o" "gcc" "CMakeFiles/Gitlet.dir/src/Commit.cpp.o.d"
-  "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/src/Repo.cpp" "CMakeFiles/Gitlet.dir/src/Repo.cpp.o" "gcc" "CMakeFiles/Gitlet.dir/src/Repo.cpp.o.d"
-  "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/src/StagingArea.cpp" "CMakeFiles/Gitlet.dir/src/StagingArea.cpp.o" "gcc" "CMakeFiles/Gitlet.dir/src/StagingArea.cpp.o.d"
-  "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/src/Utils.cpp" "CMakeFiles/Gitlet.dir/src/Utils.cpp.o" "gcc" "CMakeFiles/Gitlet.dir/src/Utils.cpp.o.d"
-  "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/src/main.cpp" "CMakeFiles/Gitlet.dir/src/main.cpp.o" "gcc" "CMakeFiles/Gitlet.dir/src/main.cpp.o.d"
+  "/Users/fr0m_scratch/gitlet/src/Commit.cpp" "CMakeFiles/Gitlet.dir/src/Commit.cpp.o" "gcc" "CMakeFiles/Gitlet.dir/src/Commit.cpp.o.d"
+  "/Users/fr0m_scratch/gitlet/src/Repo.cpp" "CMakeFiles/Gitlet.dir/src/Repo.cpp.o" "gcc" "CMakeFiles/Gitlet.dir/src/Repo.cpp.o.d"
+  "/Users/fr0m_scratch/gitlet/src/StagingArea.cpp" "CMakeFiles/Gitlet.dir/src/StagingArea.cpp.o" "gcc" "CMakeFiles/Gitlet.dir/src/StagingArea.cpp.o.d"
+  "/Users/fr0m_scratch/gitlet/src/Utils.cpp" "CMakeFiles/Gitlet.dir/src/Utils.cpp.o" "gcc" "CMakeFiles/Gitlet.dir/src/Utils.cpp.o.d"
+  "/Users/fr0m_scratch/gitlet/src/main.cpp" "CMakeFiles/Gitlet.dir/src/main.cpp.o" "gcc" "CMakeFiles/Gitlet.dir/src/main.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

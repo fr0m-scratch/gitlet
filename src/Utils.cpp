@@ -1,34 +1,14 @@
 #include "Utils.h"
 
-std::string Utils::sha1(const std::vector<std::string>& vals) {
-    SHA_CTX context;
-    if (!SHA1_Init(&context)) {
-        throw std::runtime_error("Failed to initialize SHA");
-    }
-
-    for (const std::string& val : vals) {
-        if (!SHA1_Update(&context, val.c_str(), val.size())) {
-            throw std::runtime_error("Failed to update SHA");
-        }
-    }
-
+std::string Utils::sha1(const std::vector<char>& vals) {
     unsigned char hash[SHA_DIGEST_LENGTH];
-    if (!SHA1_Final(hash, &context)) {
-        throw std::runtime_error("Failed to finalize SHA");
-    }
+    SHA1(reinterpret_cast<const unsigned char*>(vals.data()), vals.size(), hash);
 
-    return bytesToHexString(hash, SHA_DIGEST_LENGTH);
-}
-
-bool Utils::restrictedDelete(const std::string& file) {
-    fs::path path(file);
-    if (!fs::is_regular_file(path)) {
-        return false;
+    std::stringstream ss;
+    for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
     }
-    if (!fs::is_directory(path.parent_path() / ".gitlet")) {
-        throw std::invalid_argument("not .gitlet working directory");
-    }
-    return fs::remove(file);
+    return ss.str();
 }
 
 std::vector<char> Utils::readContents(const std::string& file) {
@@ -68,3 +48,13 @@ fs::path Utils::join(const std::string& first, const std::vector<std::string>& o
     return path;
 }
 
+
+std::string Utils::readStringFromFile(const std::string& filepath) {
+    std::ifstream file(filepath);
+    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+}
+
+void Utils::writeStringToFile(const std::string& text, const std::string& filepath, bool overwrite) {
+    std::ofstream file(filepath, overwrite ? std::ofstream::out : std::ofstream::app);
+    file << text;
+}

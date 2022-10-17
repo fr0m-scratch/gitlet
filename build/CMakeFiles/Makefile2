@@ -45,26 +45,25 @@ cmake_force:
 SHELL = /bin/sh
 
 # The CMake executable.
-CMAKE_COMMAND = /usr/local/Cellar/cmake/3.28.1/bin/cmake
+CMAKE_COMMAND = /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake
 
 # The command to remove a file.
-RM = /usr/local/Cellar/cmake/3.28.1/bin/cmake -E rm -f
+RM = /opt/homebrew/Cellar/cmake/3.28.3/bin/cmake -E rm -f
 
 # Escaping for special characters.
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet"
+CMAKE_SOURCE_DIR = /Users/fr0m_scratch/gitlet
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build"
+CMAKE_BINARY_DIR = /Users/fr0m_scratch/gitlet/build
 
 #=============================================================================
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
 all: CMakeFiles/Gitlet.dir/all
-all: CMakeFiles/GitletTest.dir/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
@@ -73,7 +72,6 @@ preinstall:
 
 # The main recursive "clean" target.
 clean: CMakeFiles/Gitlet.dir/clean
-clean: CMakeFiles/GitletTest.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -83,14 +81,14 @@ clean: CMakeFiles/GitletTest.dir/clean
 CMakeFiles/Gitlet.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Gitlet.dir/build.make CMakeFiles/Gitlet.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Gitlet.dir/build.make CMakeFiles/Gitlet.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles" --progress-num=1,2,3,4,5,6 "Built target Gitlet"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/fr0m_scratch/gitlet/build/CMakeFiles --progress-num=1,2,3,4,5,6 "Built target Gitlet"
 .PHONY : CMakeFiles/Gitlet.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/Gitlet.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles" 6
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/fr0m_scratch/gitlet/build/CMakeFiles 6
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/Gitlet.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles" 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/fr0m_scratch/gitlet/build/CMakeFiles 0
 .PHONY : CMakeFiles/Gitlet.dir/rule
 
 # Convenience name for target.
@@ -101,32 +99,6 @@ Gitlet: CMakeFiles/Gitlet.dir/rule
 CMakeFiles/Gitlet.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Gitlet.dir/build.make CMakeFiles/Gitlet.dir/clean
 .PHONY : CMakeFiles/Gitlet.dir/clean
-
-#=============================================================================
-# Target rules for target CMakeFiles/GitletTest.dir
-
-# All Build rule for target.
-CMakeFiles/GitletTest.dir/all:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GitletTest.dir/build.make CMakeFiles/GitletTest.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GitletTest.dir/build.make CMakeFiles/GitletTest.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles" --progress-num=7,8 "Built target GitletTest"
-.PHONY : CMakeFiles/GitletTest.dir/all
-
-# Build rule for subdir invocation for target.
-CMakeFiles/GitletTest.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles" 2
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/GitletTest.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/CMakeFiles" 0
-.PHONY : CMakeFiles/GitletTest.dir/rule
-
-# Convenience name for target.
-GitletTest: CMakeFiles/GitletTest.dir/rule
-.PHONY : GitletTest
-
-# clean rule for target.
-CMakeFiles/GitletTest.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GitletTest.dir/build.make CMakeFiles/GitletTest.dir/clean
-.PHONY : CMakeFiles/GitletTest.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

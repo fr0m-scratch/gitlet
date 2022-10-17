@@ -1,4 +1,4 @@
-# Install script for directory: /Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet
+# Install script for directory: /Users/fr0m_scratch/gitlet
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -45,5 +45,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/Users/jamalcao/Dropbox/My Mac (Jamal’s MacBook Pro)/Desktop/miscellaneous/gitlet/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/Users/fr0m_scratch/gitlet/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
