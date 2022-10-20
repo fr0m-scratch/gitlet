@@ -90,22 +90,32 @@ std::string Repo::getHEAD() const {
 StagingArea Repo::getStage() const {
     return stage;
 }
-
+//if added file is . add all regular file in the flat non-recursive dir
+//except Gitlet itself and .gitlet directory    
 void Repo::add(const std::string& fileName) {
-    //support wildcards and directories
     if (fileName == ".") {
-        fileName = workingDir.string();
-    }
-    if (fs::is_directory(fileName)) {
-        for (const auto& file : fs::recursive_directory_iterator(fileName)) {
-            if (fs::is_regular_file(file)) {
-                stage.add(file.path().string(), Utils::sha1(Utils::readContents(file.path())));
+        for (const auto& file : fs::directory_iterator(workingDir)) {
+            if (fs::is_regular_file(file) && file.path().extension() != ".gitlet" && file.path().filename() != "Gitlet") {
+                //slicing only the filename from the path
+                add(file.path().filename().string());
             }
         }
     } else {
-        stage.add(fileName, Utils::sha1(Utils::readContents(fileName)));
+        if (!fs::exists(workingDir / fileName)) {
+            std::cout << "File does not exist." << std::endl;
+            return;
+        }
+
+        std::vector<char> fileContents = Utils::readContents(workingDir / fileName);
+        std::string sha1 = Utils::sha1(fileContents);
+        std::string blobPath = (workingDir / ".gitlet/blobs" / (sha1 + ".txt")).string();
+        if (!fs::exists(blobPath)) {
+            Utils::writeContents(blobPath, fileContents);
+        }
+
+        stage.add(fileName, sha1);
+        serializeStage();
     }
-    serializeStage();
 }
 
 
@@ -164,15 +174,14 @@ void Repo::rm(const std::string& fileName) {
 }
 
 void Repo::log() const {
+    //always show all commits
     Commit curr = getCurrentCommit();
     while (!curr.getOwnHash().empty()) {
-        std::cout << "===\nCommit " << curr.getOwnHash() << "\n";
-        std::cout << curr.getDatetime() << "\n" << curr.getMessage() << "\n\n";
-        if (!curr.getParentHash().empty()) {
-            curr = deserializeCommit(workingDir / ".gitlet/commits" / (curr.getParentHash() + ".txt"));
-        } else {
+        std::cout << curr.globalLog();
+        if (curr.getParentHash().empty()) {
             break;
         }
+        curr = deserializeCommit(workingDir / ".gitlet/commits" / (curr.getParentHash() + ".txt"));
     }
 }
 
@@ -222,7 +231,18 @@ void Repo::status() const {
 
     // Display status
     std::cout << "=== Branches ===\n";
-    for (const auto& branch : branches) {
+    for (const auto& branchName : branches) {
+        //remove txt extension from branch name
+        //read current branch name from HEAD.txt
+        
+        std::string branch = branchName.substr(0, branchName.size() - 4);
+        std::string headBranchPath = workingDir / ".gitlet/branches/HEAD.txt";
+        std::string currentBranch = Utils::readStringFromFile(headBranchPath);
+        
+        if (branch == currentBranch) {
+            std::cout << "*";
+        } 
+        
         std::cout << branch << "\n";
     }
     std::cout << "\n=== Staged Files ===\n";
@@ -233,7 +253,7 @@ void Repo::status() const {
     for (const auto& file : removedFiles) {
         std::cout << file << "\n";
     }
-    // Implementations for "Modifications Not Staged For Commit" and "Untracked Files" can be added here
+    
     std::cout << "\n=== Modifications Not Staged For Commit ===\n\n=== Untracked Files ===\n";
 }
 
@@ -245,9 +265,44 @@ Commit Repo::getCurrentCommit() const {
 }
 
 void Repo::checkout(const std::vector<std::string>& args) {
-    // Implementation of the checkout command, simplified for brevity
-    // Adapt this method based on your project's specific requirements and existing structure
+    if (args.size() == 1) {
+        std::string branchName = args[0];
+        fs::path branchPath = workingDir / ".gitlet/branches" / (branchName + ".txt");
+        if (!fs::exists(branchPath)) {
+            std::cout << "File does not exist in the most recent commit, or no such branch exists." << std::endl;
+            return;
+        }
+
+        std::string commitID = Utils::readStringFromFile(branchPath);
+        Commit commit = deserializeCommit(workingDir / ".gitlet/commits" / (commitID + ".txt"));
+        for (const auto& [fileName, blobHash] : commit.getBlobs()) {
+            checkoutFile(commit, fileName);
+        }
+
+        // Remove files that are not in the commit to reset to
+        for (const auto& file : fs::directory_iterator(workingDir)) {
+            if (fs::is_regular_file(file) && file.path().filename() != ".gitlet" && file.path().filename() != "Gitlet") {
+                std::string relativePath = fs::relative(file.path(), workingDir).string();
+                if (commit.getBlobs().find(relativePath) == commit.getBlobs().end()) {
+                    fs::remove(file);
+                }
+            }
+        }
+
+        //overwrite current branch'name in HEAD.txt
+        std::string headBranchPath = (workingDir / ".gitlet/branches/HEAD.txt").string();
+        Utils::writeStringToFile(branchName, headBranchPath, true);
+
+    } else if (args.size() == 3 && args[1] == "--") {
+        std::string commitID = args[0];
+        std::string fileName = args[2];
+        Commit commit = deserializeCommit(workingDir / ".gitlet/commits" / (commitID + ".txt"));
+        checkoutFile(commit, fileName);
+    } else {
+        std::cout << "Incorrect Operands" << std::endl;
+    }
 }
+
 
 void Repo::branch(const std::string& branchName) {
     fs::path branchPath = workingDir / ".gitlet/branches" / (branchName + ".txt");
@@ -275,112 +330,93 @@ void Repo::rmb(const std::string& branchName) {
 }
 
 void Repo::reset(const std::string& commitID) {
-    Commit commitToCheckout = deserializeCommit(".gitlet/commits/" + commitID + ".txt");
-    if (commitToCheckout.getOwnHash().empty()) {
+    Commit commitToReset = deserializeCommit(".gitlet/commits/" + commitID + ".txt");
+    if (commitToReset.getOwnHash().empty()) {
         std::cout << "No commit with that id exists." << std::endl;
         return;
     }
 
-    std::vector<fs::path> fileList;
+    // Checkout files from the commit to reset to
+    for (const auto& [fileName, blobHash] : commitToReset.getBlobs()) {
+        checkoutFile(commitToReset, fileName);
+    }
+
+    // Remove files that are not in the commit to reset to
     for (const auto& file : fs::directory_iterator(workingDir)) {
-        if (file.path().filename().string().ends_with(".txt")) {
-            fileList.push_back(file.path());
+        if (fs::is_regular_file(file) && file.path().filename() != ".gitlet" && file.path().filename() != "Gitlet") {
+            std::string relativePath = fs::relative(file.path(), workingDir).string();
+            if (commitToReset.getBlobs().find(relativePath) == commitToReset.getBlobs().end()) {
+                fs::remove(file);
+            }
         }
     }
 
-    Commit currCommit = getCurrentCommit();
-    for (const auto& file : fileList) {
-        std::string fileName = file.filename().string();
-        if (currCommit.getBlobs().find(fileName) == currCommit.getBlobs().end() &&
-            commitToCheckout.getBlobs().find(fileName) != commitToCheckout.getBlobs().end()) {
-            std::cout << "There is an untracked file in the way; delete it or add it first." << std::endl;
-            return;
-        }
-    }
+    // Update the current branch's commit ID
+    std::string headBranchPath = (workingDir / ".gitlet/branches/HEAD.txt").string();
+    std::string currentBranch = Utils::readStringFromFile(headBranchPath);
+    std::string branchPath = (workingDir / ".gitlet/branches" / currentBranch).string() + ".txt";
+    Utils::writeStringToFile(commitID, branchPath, true);
 
-    for (const auto& file : fileList) {
-        std::string fileName = file.filename().string();
-        if (commitToCheckout.getBlobs().find(fileName) == commitToCheckout.getBlobs().end() &&
-            currCommit.getBlobs().find(fileName) != currCommit.getBlobs().end()) {
-            fs::remove(file);
-        }
-    }
-
-    for (const auto& [fileName, blobHash] : commitToCheckout.getBlobs()) {
-        fs::path blobPath = workingDir / ".gitlet/blobs" / (blobHash + ".txt");
-        std::vector<char> blobBytes = Utils::readContents(blobPath);
-        fs::path newFilePath = workingDir / fileName;
-        Utils::writeContents(newFilePath, blobBytes);
-    }
-
-    stage.clear();
-    serializeStage();
-    Utils::writeStringToFile(commitID, ".gitlet/branches/" + HEAD + ".txt", false);
+    std::cout << "Reset to commit " << commitID << std::endl;
 }
-
 void Repo::merge(const std::string& branchName) {
-    if (branchName == HEAD) {
+    std::string currentBranch = Utils::readStringFromFile(workingDir / ".gitlet/branches/HEAD.txt");
+    if (currentBranch == branchName) {
         std::cout << "Cannot merge a branch with itself." << std::endl;
         return;
     }
 
+    std::string currentCommitHash = Utils::readStringFromFile(workingDir / ".gitlet/branches" / (currentBranch + ".txt"));
+    std::string branchCommitHash = Utils::readStringFromFile(workingDir / ".gitlet/branches" / (branchName + ".txt"));
+    Commit currentCommit = deserializeCommit(workingDir / ".gitlet/commits" / (currentCommitHash + ".txt"));
+    Commit branchCommit = deserializeCommit(workingDir / ".gitlet/commits" / (branchCommitHash + ".txt"));
+
+    Commit splitPoint = findSplitPoint(currentCommit, branchCommit);
+    if (splitPoint.getOwnHash().empty()) {
+        std::cout << "Already up-to-date." << std::endl;
+        return;
+    } else if (splitPoint.getOwnHash() == branchCommit.getOwnHash()) {
+        Utils::writeStringToFile(branchName, workingDir / ".gitlet/branches/HEAD.txt", true);
+        std::cout << "Current branch fast-forwarded." << std::endl;
+        return;
+    }
+
+    std::unordered_set<std::string> currentAncestors = getAllAncestors(currentCommit);
+    std::unordered_set<std::string> branchAncestors = getAllAncestors(branchCommit);
+    std::unordered_set<std::string> splitPointAncestors = getAllAncestors(splitPoint);
+
+    // Check for uncommitted changes
     if (!stage.getAddedFiles().empty() || !stage.getRemovedFiles().empty()) {
         std::cout << "You have uncommitted changes." << std::endl;
         return;
     }
 
-    fs::path branchPath = ".gitlet/branches/" + branchName + ".txt";
-    if (!fs::exists(branchPath)) {
-        std::cout << "A branch with that name does not exist." << std::endl;
-        return;
-    }
+    // Check for untracked files
+    for (const auto& file : fs::directory_iterator(workingDir)) {
+        if (fs::is_regular_file(file) && file.path().filename() != ".gitlet" && file.path().filename() != "Gitlet") {
+            std::string relativePath = fs::relative(file.path(), workingDir).string();
+            if (currentCommit.getBlobs().find(relativePath) == currentCommit.getBlobs().end() && branchCommit.getBlobs().find(relativePath) == branchCommit.getBlobs().end()) {
+                std::cout << "There is an untracked file in the way; delete it, or add and commit it first." << std::endl;
+                return;
+            }
+        }   
+    }   
 
-    Commit currentCommit = getCurrentCommit();
-    Commit branchCommit = deserializeCommit(".gitlet/commits/" + Utils::readStringFromFile(branchPath.string()));
-    Commit splitPoint = findSplitPoint(currentCommit, branchCommit);
-
-    if (splitPoint.getOwnHash() == branchCommit.getOwnHash()) {
-        std::cout << "Given branch is an ancestor of the current branch." << std::endl;
-        return;
-    }
-    if (splitPoint.getOwnHash() == currentCommit.getOwnHash()) {
-        checkout({branchName});
-        std::cout << "Current branch fast-forwarded." << std::endl;
-        return;
-    }
-
-    bool conflict = false;
-    for (const auto& [fileName, branchBlobHash] : branchCommit.getBlobs()) {
-        bool inCurrent = currentCommit.getBlobs().find(fileName) != currentCommit.getBlobs().end();
-        bool inSplit = splitPoint.getBlobs().find(fileName) != splitPoint.getBlobs().end();
-        std::string currentBlobHash = inCurrent ? currentCommit.getBlobs().at(fileName) : "";
-        std::string splitBlobHash = inSplit ? splitPoint.getBlobs().at(fileName) : "";
-
-        if ((inCurrent && inSplit && currentBlobHash != splitBlobHash && branchBlobHash != splitBlobHash) ||
-            (inCurrent && !inSplit && branchBlobHash != currentBlobHash) ||
-            (!inCurrent && inSplit && branchBlobHash != splitBlobHash)) {
-            conflict = true;
+    // Check for conflicts
+    for (const auto& [fileName, currentBlobHash] : currentCommit.getBlobs()) {
+        std::string branchBlobHash = branchCommit.getBlobs().find(fileName) != branchCommit.getBlobs().end() ? branchCommit.getBlobs().at(fileName) : "";
+        std::string splitPointBlobHash = splitPoint.getBlobs().find(fileName) != splitPoint.getBlobs().end() ? splitPoint.getBlobs().at(fileName) : "";
+        if (currentBlobHash != branchBlobHash && currentBlobHash != splitPointBlobHash && branchBlobHash != splitPointBlobHash) {
+            std::cout << "Encountered a merge conflict." << std::endl;
             handleConflict(fileName, currentBlobHash, branchBlobHash);
-        } else if (!inCurrent && !inSplit) {
-            checkoutFile(branchCommit, fileName);
-            stage.add(fileName, branchBlobHash);
-        } else if (!inSplit && inCurrent) {
-            // File only in current branch, do nothing
-        } else if (inSplit && !inCurrent && branchCommit.getBlobs().find(fileName) == branchCommit.getBlobs().end()) {
-            // File present at split point, unmodified in given branch, and absent in current branch
-            fs::remove(workingDir / fileName);            
-            stage.addToRemovedFiles(fileName);
+            return;
         }
     }
 
-    if (conflict) {
-        std::cout << "Encountered a merge conflict." << std::endl;
-    } else {
-        std::string message = "Merged " + branchName + " into " + HEAD + ".";
-        commitment(message);
-    }
-
-    serializeStage();
+    // Update the current branch's commit ID
+    std::string headBranchPath = (workingDir / ".gitlet/branches/HEAD.txt").string();
+    Utils::writeStringToFile(currentBranch, headBranchPath, true);
+    std::cout << "Merged " << branchName << " into " << currentBranch << "." << std::endl;
 }
 
 void Repo::handleConflict(const std::string& fileName, const std::string& currentBlobHash, const std::string& branchBlobHash) {
@@ -405,6 +441,7 @@ void Repo::checkoutFile(const Commit& commit, const std::string& fileName) {
     std::vector<char> blobData = Utils::readContents(workingDir / ".gitlet/blobs" / (blobHash + ".txt"));
     Utils::writeContents(workingDir / fileName, blobData);
 }
+
 Commit Repo::findSplitPoint(const Commit& currentCommit, const Commit& branchCommit) {
     std::unordered_set<std::string> currentAncestors = getAllAncestors(currentCommit);
     std::unordered_set<std::string> branchAncestors = getAllAncestors(branchCommit);
@@ -459,9 +496,9 @@ void Repo::serializeCommit(const Commit& commit, const std::string& path) {
 }
 
 Commit Repo::deserializeCommit(const std::string& path) const {
-    Commit commit; // Assuming default constructor is available
+    Commit commit; 
     std::ifstream ifs(path);
-    if(ifs.good()) { // Check if the file exists and is not empty
+    if(ifs.good()) { 
         boost::archive::text_iarchive ia(ifs);
         ia >> commit;
     }

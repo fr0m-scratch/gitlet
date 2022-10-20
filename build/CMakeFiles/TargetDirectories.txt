@@ -1,3 +1,0 @@
-/Users/fr0m_scratch/gitlet/build/CMakeFiles/Gitlet.dir
-/Users/fr0m_scratch/gitlet/build/CMakeFiles/edit_cache.dir
-/Users/fr0m_scratch/gitlet/build/CMakeFiles/rebuild_cache.dir
