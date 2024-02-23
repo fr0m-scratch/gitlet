@@ -14,3 +14,13 @@ Gitlet is a simplified version control system inspired by Git, implemented in C+
 - C++ compiler supporting C++17
 - [Boost library](https://www.boost.org/) (at least version 1.65)
 - CMake (version 3.10 or higher)
+
+##Installation 
+1. Clone the repo into your local machine
+`git clone https://github.com/fr0m-scratch/gitlet.git`
+
+2. Build the excutable Gitlet
+`mkdir build && cd build && cmake .. && make `
+
+3. Put the excutable Gitlet into your desired directory and run `./gitlet [COMMAND]` or
+add it to your system PATH.
