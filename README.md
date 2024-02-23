@@ -15,7 +15,7 @@ Gitlet is a simplified version control system inspired by Git, implemented in C+
 - [Boost library](https://www.boost.org/) (at least version 1.65)
 - CMake (version 3.10 or higher)
 
-##Installation 
+## Installation 
 1. Clone the repo into your local machine
 `git clone https://github.com/fr0m-scratch/gitlet.git`
 
